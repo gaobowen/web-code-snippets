@@ -92,6 +92,8 @@ t、b、l、r 分别代表camera投影面的上下左右，camera指向-z方向�
        a3, b3, c3, d3, 
        a4, b4, c4, d4)
 ```
+还需要引入math.js文件。  
+
 [DEMO 地址](https://github.com/gaobowen/web-code-snippets/effect/3dmatrix.html)
 
 参考文献：  
