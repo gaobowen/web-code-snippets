@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/6.2.2/math.min.js"></script>
+<style>
+    .canvas-div {
+        position: relative;
+        left: 30px;
+        top: 30px;
+        width: 1024px;
+        height: 576px;
+        padding: 0%;
+        background-color: lightgray;
+        overflow: hidden;
+    }
+
+    .canvas-div .slide {
+        position: absolute;
+        width: 1024px;
+        height: 576px;
+        left: 0px;
+        top: 0px;
+        transform-origin: 0 0;
+    }
+
+    .canvas-div .slide.A {
+        background-color: lightseagreen;
+    }
+
+    .canvas-div .slide.B {
+        background-color: orangered;
+    }
+
+    #rangeinput {
+        margin: 50px 50px;
+        width: 300px;
+    }
+</style>
+
+<body>
+    <div class="canvas-div">
+        <div class="slide A" id='slideA'></div>
+        <div class="slide B" id='slideB'></div>
+    </div>
+    <input id='rangeinput' type="range" min="0" max="100" value="0" onmousemove="changeinput(this)" />
+</body>
+
+<script>
+    //乘 math.multiply(A, B) 
+    //转置 math.transpose(A) 
+    //逆  math.inv(A) 
+    //行列式 |A| math.det(A) 
+    //展开 math.flatten([[1,2], [3,4]])   // returns [1, 2, 3, 4]
+    //初始化 math.identity(n), math.identity(row,col)
+
+    //浏览器里与win2d不同的地方：浏览器默认的变换中心在图像的中心点，win2d在0，0点。
+    /*
+   matrix3d为列向量计算矩阵的转置,容易弄错, 下面全部改用用转置矩阵来计算
+   matrix3d(
+       a1, b1, c1, d1, 
+       a2, b2, c2, d2, 
+       a3, b3, c3, d3, 
+       a4, b4, c4, d4)
+   */
+
+    //camera指向-z方向，向屏幕内观察
+    //创建透视矩阵
+    /*
+       2n/(r-l)    0      (r+l)/(r-l)    0
+         0      2n/(t-b)  (t+b)/(t-b)    0
+         0         0      (n+f)/(n-f) 2fn/(n-f)
+         0         0          -1         0
+    */
+    let w = 1024;
+    let h = 576;
+    // 1/2宽作为近景在 X-O-Z 平面上，可以刚好使图像左右两边到camera的夹角为直角，
+    // 且3个点组成的三角形为等腰直角三角形，便于后面计算。
+    let n = -w / 2;
+    let f = -w * 1000;
+
+    //若以图像宽高比作为camera镜头比例，图像会根据宽高比，渲染成正方形（即长边被压缩）
+    // let r = w / 2;
+    // let l = -r;
+    // let t = h / 2;
+    // let b = -t;
+    //思考？自然界中有很多例子
+    /*
+    例如，猫眼竖瞳可以更好的看到上下的物体
+    对于竖瞳来说，物体在纵向上的景深比横向更大——这意味着对于处在焦点前后的物体，纵向上要比横向上看得更加清晰。
+    因此，竖瞳能对眼睛的立体视觉进行辅助，便于动物估计物体在纵向上的距离；
+    同时，动物可以通过离焦模糊的程度，来估计物体在横向上与自己的距离。
+    竖瞳在伏击捕食者中更为常见，这种形状的瞳孔能够让它们在不惊动猎物的情况下，更准确地估计猎物到自己的距离。
+
+    例如山羊则为横瞳
+    横瞳则主要存在于被捕食动物中。这些动物的眼睛大多长在头部两侧，非常宽的单眼视野可以帮助它们尽量减少视觉盲区。
+    与竖瞳相反，横瞳会增加物体在横向上的景深，同时让前方和后方的地面成像更清晰。
+    对于被捕食的动物来说，横瞳既能帮助它们拥有清晰的横向全景视觉，以探测来自不同方向的捕食者，
+    同时又能让它们在眼睛长在两侧的情况下，也能看清前方地面的情况，在遭遇捕食者追赶时，能够看准地形快速逃跑。
+    */
+    //人眼为圆形瞳孔
+    let r = 1;
+    let l = -1;
+    let t = 1;
+    let b = -1;
+
+    let m00 = 2 * n / (r - l);
+    let m02 = (r + l) / (r - l); //0
+    let m11 = 2 * n / (t - b);
+    let m12 = (t + b) / (t - b); //0
+    let m22 = (n + f) / (n - f);
+    let m23 = 2 * f * n / (n - f);
+    let m32 = -1;
+
+    const aperspect = math.matrix([
+        [m00, 0, m02, 0],
+        [0, m11, m12, 0],
+        [0, 0, m22, m23],
+        [0, 0, m32, 0]
+    ])
+    const aperspectT = math.transpose(aperspect);
+
+    var change3d = (rfactor, dfactor, mSlide) => {
+        //thet θ，图像距离近景越近，图像完全移出画布的角度越逼近于90度，越远越接近45度。
+        let thet = 1 / 2 * rfactor * Math.PI;
+        const rotationYT = math.matrix([
+            [Math.cos(thet), 0, -Math.sin(thet), 0],
+            [0, 1, 0, 0],
+            [Math.sin(thet), 0, Math.cos(thet), 0],
+            [0, 0, 0, 1]
+        ])
+        let result = math.identity(4);
+        //把图像移动至原点(0, 0),方便计算绕Y轴旋转
+        //拉远至近景距离的2倍，视觉上为图像缩小1倍
+        const transOT = math.matrix([
+            [1, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [-w / 2, -h / 2, -w / 2 * dfactor, 1]
+        ]);
+        result = transOT;
+        //y旋转
+        result = math.multiply(result, rotationYT);
+        //透视
+        result = math.multiply(result, aperspectT);
+        //还原至画布中央
+        const transCenterT = math.matrix([
+            [1, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [w / 2, h / 2, 0, 1]
+        ]);
+        result = math.multiply(result, transCenterT);
+        let mStr = math.flatten(result)._data.join(',');
+        mSlide.style.transform = `matrix3d(${mStr})`
+    }
+
+    var changeSlideB = (e) => {
+        let progress = e.value / 100;
+        //镜头平滑的拉远后再拉近，用二次曲线模拟
+        let dfactor = -8 * Math.pow(progress - 0.5, 2) + 3;
+        //使拉远时两幅图显得更靠近
+        let rfactor = Math.pow(progress, 2);
+        let slideB = document.getElementById('slideB');
+        change3d(rfactor, dfactor, slideB);
+    }
+
+    var changeSlideA = (e) => {
+        let progress = 1 - e.value / 100;
+        let rfactor = - Math.pow(progress, 2);
+        let dfactor = -8 * Math.pow(progress - 0.5, 2) + 3;
+        let slideA = document.getElementById('slideA');
+        change3d(rfactor, dfactor, slideA);
+    }
+
+    var changeinput = (e) => {
+        changeSlideA(e);
+        changeSlideB(e);
+    }
+</script>
+
+</html>
