@@ -99,4 +99,5 @@ t、b、l、r 分别代表camera投影面的上下左右，camera指向-z方向�
 参考文献：  
 1. [3D游戏与计算机图形学中的数学方法-视截体](https://www.cnblogs.com/tgycoder/p/4889225.html)  
 2. [透视投影矩阵推导](https://www.cnblogs.com/AirGuanZ/p/6365702.html)  
-3. [旋转矩阵](https://www.cnblogs.com/zhoug2020/p/7842808.html)
+3. [三维旋转矩阵](https://wenku.baidu.com/view/cc110f88e53a580216fcfe13.html)
+4. [旋转矩阵](https://www.cnblogs.com/zhoug2020/p/7842808.html)
