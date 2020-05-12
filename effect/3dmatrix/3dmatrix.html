@@ -13,17 +13,16 @@
         position: relative;
         left: 30px;
         top: 30px;
-        width: 1024px;
-        height: 576px;
+        width: 614.390625px;
+        height: 345.59375px;
         padding: 0%;
         background-color: lightgray;
-        overflow: hidden;
     }
 
     .canvas-div .slide {
         position: absolute;
-        width: 1024px;
-        height: 576px;
+        width: 614.390625px;
+        height: 345.59375px;
         left: 0px;
         top: 0px;
         transform-origin: 0 0;
@@ -45,8 +44,12 @@
 
 <body>
     <div class="canvas-div">
-        <div class="slide A" id='slideA'></div>
-        <div class="slide B" id='slideB'></div>
+        <div class="slide A" id='slideA'>
+            LLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+        </div>
+        <div class="slide B" id='slideB'>
+            LLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+        </div>
     </div>
     <input id='rangeinput' type="range" min="0" max="100" value="0" onmousemove="changeinput(this)" />
 </body>
@@ -77,8 +80,8 @@
          0         0      (n+f)/(n-f) 2fn/(n-f)
          0         0          -1         0
     */
-    let w = 1024;
-    let h = 576;
+    let w = 614.390625;
+    let h = 345.59375;
     // 1/2宽作为近景在 X-O-Z 平面上，可以刚好使图像左右两边到camera的夹角为直角，
     // 且3个点组成的三角形为等腰直角三角形，便于后面计算。
     let n = -w / 2;
@@ -124,7 +127,7 @@
         [0, 0, m32, 0]
     ])
     const aperspectT = math.transpose(aperspect);
-
+    //const aperspectT = aperspect;
     var change3d = (rfactor, dfactor, mSlide) => {
         //thet θ，图像距离近景越近，图像完全移出画布的角度越逼近于90度，越远越接近45度。
         let thet = 1 / 2 * rfactor * Math.PI;
@@ -132,6 +135,12 @@
             [Math.cos(thet), 0, -Math.sin(thet), 0],
             [0, 1, 0, 0],
             [Math.sin(thet), 0, Math.cos(thet), 0],
+            [0, 0, 0, 1]
+        ])
+        const rotationXT = math.matrix([
+            [1, 0, 0, 0],
+            [0, Math.cos(thet), Math.sin(thet), 0],
+            [0, -Math.sin(thet), Math.cos(thet), 0],
             [0, 0, 0, 1]
         ])
         let result = math.identity(4);
@@ -144,6 +153,14 @@
             [-w / 2, -h / 2, -w / 2 * dfactor, 1]
         ]);
         result = transOT;
+        //小孔成像纠正
+        const pinhole = math.matrix([
+            [-1, 0, 0, 0],
+            [0, -1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
+        ]);
+        result = math.multiply(result, pinhole);
         //y旋转
         result = math.multiply(result, rotationYT);
         //透视
@@ -157,7 +174,7 @@
         ]);
         result = math.multiply(result, transCenterT);
         let mStr = math.flatten(result)._data.join(',');
-        mSlide.style.transform = `matrix3d(${mStr})`
+        mSlide.style.transform = `matrix3d(${mStr}) `
     }
 
     var changeSlideB = (e) => {
